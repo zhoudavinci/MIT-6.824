@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"mapreduce"
 	"os"
+  "strconv"
+  "strings"
+  "unicode"
 )
 
 //
@@ -13,8 +16,23 @@ import (
 // and look only at the contents argument. The return value is a slice
 // of key/value pairs.
 //
+
+func isNotLetter(r rune) bool {
+  return unicode.IsLetter(r) == false
+}
+
+
 func mapF(filename string, contents string) []mapreduce.KeyValue {
 	// Your code here (Part II).
+  var res []mapreduce.KeyValue
+  // split contents into words, should all letter are lower??
+  // words := strings.FieldsFunc(strings.ToLower(contents), isNotLetter)
+  words := strings.FieldsFunc(contents, isNotLetter)
+  for _, w := range words {
+    kv := mapreduce.KeyValue{w, "1"}
+    res = append(res, kv)
+  }
+  return res
 }
 
 //
@@ -24,6 +42,17 @@ func mapF(filename string, contents string) []mapreduce.KeyValue {
 //
 func reduceF(key string, values []string) string {
 	// Your code here (Part II).
+  count := 0
+  for _, value := range values {
+    tmp, err := strconv.Atoi(value)
+    if (err != nil) {
+      fmt.Println("convert string to integer failed ", err)
+    }
+    count = count + tmp
+  }
+  return strconv.Itoa(count)
+  // trick for wc
+  // return strconv.Itoa(len(values))
 }
 
 // Can be run in 3 ways:
