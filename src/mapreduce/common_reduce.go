@@ -18,7 +18,7 @@ func (kv KeyValueSlice) Swap(i, j int) {
 }
 
 func (kv KeyValueSlice) Less(i, j int) bool {
-  return kv[i].Value < kv[j].Value
+  return kv[i].Key < kv[j].Key
 }
 
 func doReduce(
