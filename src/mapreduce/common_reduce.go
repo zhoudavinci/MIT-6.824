@@ -1,5 +1,29 @@
 package mapreduce
 
+import (
+	"encoding/json"
+	"os"
+	"sort"
+  "strconv"
+  "log"
+)
+
+type KeyValueSlice []KeyValue
+
+func (kv KeyValueSlice) Len() int {
+	return len(kv)
+}
+
+func (kv KeyValueSlice) Swap(i, j int) {
+	kv[i], kv[j] = kv[j], kv[i]
+}
+
+func (kv KeyValueSlice) Less(i, j int) bool {
+	a, _ := strconv.Atoi(kv[i].Key)
+  b, _ := strconv.Atoi(kv[j].Key)
+  return a < b
+}
+
 func doReduce(
 	jobName string, // the name of the whole MapReduce job
 	reduceTask int, // which reduce task this is
@@ -44,4 +68,55 @@ func doReduce(
 	//
 	// Your code here (Part I).
 	//
+	var kvs KeyValueSlice
+  // 1. read all the reduce file and decode the data stream
+  for m := 0; m < nMap; m++ {
+    inFile := reduceName(jobName, m, reduceTask)
+	  file, err := os.Open(inFile)
+	  if err != nil {
+		  log.Fatal("Open file failed, ", err)
+		  return
+	  }
+	  defer file.Close()
+
+	  // build decoder
+	  dec := json.NewDecoder(file)
+
+    for dec.More() {
+      var kv KeyValue
+      err = dec.Decode(&kv)
+      if err != nil {
+        log.Fatal("Decoder failed, ", err)
+        break
+      }
+      kvs = append(kvs, kv)
+    }
+  }
+
+  // 2. sort kvs
+	sort.Sort(kvs)
+
+  // 3. for each distinct key, use reduceF to calculate all the values
+	file, _ := os.OpenFile(outFile, os.O_CREATE|os.O_RDWR, 0664)
+	defer file.Close()
+
+  enc := json.NewEncoder(file)
+	length := len(kvs)
+	for i := 0; i < length; i++ {
+		key := kvs[i].Key
+		var values []string
+    j := i
+		for ; j < length; j++{
+			if (kvs[j].Key != key) {
+				break
+			} else {
+				values = append(values, kvs[j].Value)
+			}
+    }
+    i = j - 1
+    err := enc.Encode(KeyValue{key, reduceF(key, values)})
+    if (nil != err) {
+      log.Fatal("Reduce encoder failed, ", err)
+    }
+	}
 }
