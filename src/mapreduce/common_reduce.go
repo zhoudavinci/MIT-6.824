@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"sort"
-  "strconv"
   "log"
 )
 
@@ -19,9 +18,7 @@ func (kv KeyValueSlice) Swap(i, j int) {
 }
 
 func (kv KeyValueSlice) Less(i, j int) bool {
-	a, _ := strconv.Atoi(kv[i].Key)
-  b, _ := strconv.Atoi(kv[j].Key)
-  return a < b
+  return kv[i].Value < kv[j].Value
 }
 
 func doReduce(
