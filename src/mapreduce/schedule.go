@@ -46,8 +46,15 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
       go getRegister(registerChan, reg)
       register := <-reg
 
+      // the result of rpc call
+      res := make(chan bool)
       // call rpc for tasks with Goroutine, meantime, pushing the worker's address into the channel after the task has been done.
-      go callRpc(register, registerChan, taskArgs, &wg)
+      go callRpc(register, registerChan, taskArgs, &wg, res)
+      isok := <-res
+      // if task is failed, try again
+      if (isok == false) {
+        i -= 1
+      }
     }
     wg.Wait()
   case reducePhase:
@@ -61,7 +68,12 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
       go getRegister(registerChan, reg)
       register := <-reg
 
-      go callRpc(register, registerChan, taskArgs, &wg)
+      res := make(chan bool)
+      go callRpc(register, registerChan, taskArgs, &wg, res)
+      isok := <-res
+      if (isok == false) {
+        i -= 1
+      }
     }
     wg.Wait()
   }
@@ -70,10 +82,13 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 }
 
 // use call() to do map/reduce task, and push the worker's address into channel for next map/reduce task. the wg should be a pointer, otherwise the process would be dead-lock status.
-func callRpc(register string, registerChan chan string, taskArgs DoTaskArgs, wg *sync.WaitGroup) {
-  ok := call(register, "Worker.DoTask", taskArgs, nil)
-  if (ok == false) {
+func callRpc(register string, registerChan chan string, taskArgs DoTaskArgs, wg *sync.WaitGroup, res chan bool) {
+  isok := call(register, "Worker.DoTask", taskArgs, nil)
+  // recode the call result
+  res <- isok
+  if (isok == false) {
     fmt.Println("map/reduce task error.")
+    return
   }
   wg.Done()
   setRegister(registerChan, register)
